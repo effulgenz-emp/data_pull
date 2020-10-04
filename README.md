@@ -42,4 +42,4 @@
 1. Script will create data and log folder in the project directory.
     * data - all parquet files
     * log - log files
-        * backups only last 10 day files (configurable in logging.conf file)
+        * last 10 log files only available (configurable in logging.conf file)
