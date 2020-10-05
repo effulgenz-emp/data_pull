@@ -1,10 +1,17 @@
+''' This module is used to connect the cassandra database
+
+class       : CassandraCluster
+functions   : cassandra_session (Creates session for the given credentials)
+              pandas_result_set (returns pandas df for the given query)
+              cluster_shutdown (close the connection)
+'''
+
 import logging.config
 
 import pandas as pd
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster
 from cassandra.policies import DCAwareRoundRobinPolicy
-
 
 # Initialize log
 logger = logging.getLogger(__name__)
@@ -23,8 +30,8 @@ class CassandraCluster:
 
     def cassandra_session(self):
         '''Creates session for the cassandra cluser
-                Uses policy as DCAwareRoundRobinPolicy, 
-                    protocol version as 3 and 
+                Uses policy as DCAwareRoundRobinPolicy,
+                    protocol version as 3 and
                     control connection timeout as 100
 
             Returns session
@@ -56,10 +63,9 @@ class CassandraCluster:
             Output argument:
                 df             - Query result set as Pandas dataframe
 
-            Reference: 
+            Reference:
                 https://groups.google.com/a/lists.datastax.com/g/python-driver-user/c/1v-KHtyA0Zs
-                https://www.thetopsites.net/article/59318754.shtml        
-
+                https://www.thetopsites.net/article/59318754.shtml
         '''
         session.set_keyspace(keyspace)
 
@@ -81,4 +87,5 @@ class CassandraCluster:
             self.logger.info('Cassandra cluster is shutdown')
 
     def __repr__(self):
-        return f'''CassandraCluster('{self.ip}', {self.port}, '{self.user}', '{self.pwd}')'''
+        return f'''CassandraCluster('{self.ip}', {self.port},
+                                        '{self.user}', '{self.pwd}')'''
