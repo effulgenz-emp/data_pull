@@ -1,0 +1,4 @@
+{
+    "ALL_TABLES_QUERY": "SELECT * FROM system_schema.tables WHERE keyspace_name =",
+    "INDIVIDUAL_TABLE_DATA_QUERY": "SELECT * FROM"
+}
