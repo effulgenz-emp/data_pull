@@ -64,13 +64,13 @@ def main():
                                          file_type='csv')
 
         all_tables = all_tables_df['table_name'].tolist()
-
         logger.info('Data pull is started...')
-
+        
         for table in all_tables:
             table_data_query = f'{individual_table_data_query} {table}'
             logger.debug(f'table data query - {table_data_query}')
             file_location = f'{data_folder}/{keyspace}_{table}'
+
             cas_con.query_result_set_to_file(session=cas_con.session,
                                              query=table_data_query,
                                              file_location=file_location)

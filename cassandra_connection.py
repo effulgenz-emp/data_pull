@@ -140,11 +140,11 @@ class CassandraCluster:
 
         result = session.execute(query, timeout=None)
         dataframe = result._current_rows
-
         return dataframe
 
     def query_result_set_to_file(self, session, query,
                                  file_location, file_type='parquet'):
+
         '''Writes the result set into a file (Parquet or csv)
 
         Args:
