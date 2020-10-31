@@ -3,10 +3,11 @@
 ## How to run?
 
 ### Prerequisites:
-    
+
 1. Install Python.
    * Download & Install latest version of python from [here](https://www.python.org/downloads/)
-2. Update the cassandra_config.ini file. 
+2. Update the cassandra_config.ini file.
+
    ```
     IP_ADDRESS = <<IP>>
     PORT = <<Port>>
@@ -15,12 +16,20 @@
     KEY_SPACE = <<KeySpace>>
     ```
 
-    Ex. Without quote
+   1. Encode your password using password_encode.py
+   2. Open command prompt and go to the project directory
+   3. Run *python password_encoder.py*
+        ```python
+        Enter the password to encode: password1234
+        Your encoded password - b'cGFzc3dvcmQxMjM0'
+   4. Copy the encoded password and add it in cassandra_config.ini
+
+    Example: *(Strings without quote)*
     ```
     IP_ADDRESS = 255.255.0.0
     PORT = 9042
     USER = username
-    PWD = password
+    PWD = cGFzc3dvcmQxMjM0
     KEY_SPACE = keyspace
     ```
 
