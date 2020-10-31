@@ -10,6 +10,7 @@ functions   : cassandra_session (Creates session for the given credentials)
 
 import base64
 import logging.config
+from contextlib import contextmanager
 
 import pandas as pd
 from cassandra.auth import PlainTextAuthProvider
@@ -21,37 +22,26 @@ logger = logging.getLogger(__name__)
 
 class CassandraCluster:
     '''CassandraCluster for cassandra operations like
-        create connection, execute query, close connections etc.
+    create connection, execute query, close connections etc.
 
     Attributes
     ----------
-    ip_address (str): IP address of cassandra server
-    port (int): Port number to connect cassandra server
-    user (str): Username to connect cassandra server
-    pwd (str): Encoded password to connect cassandra server
+        ip_address (str): IP address of cassandra server
+        port (int): Port number to connect cassandra server
+        user (str): Username to connect cassandra server
+        pwd (str): Encoded password to connect cassandra server
+        cluster (obj): Cassandra cluster object. Defaults to None
+        session (obj): Cassandra session object. Defaults to None
+        logger (obj): Logger object
 
     Methods
     -------
-    cassandra_cluster(self)
-        Connects to cassandra cluster
 
-        Returns:
-            cluster object: Connects cassandra server
-                                based on the object parameters
-                                and returns cassandra cluster object
+    connect_cassandra(self, keyspace):
+        Connects cassandra using object parameters
 
-
-    cassandra_session(cluster, keyspace)
-        Creates cassandra cluster session for the given keyspace and cluster
-
-        Args:
-            cluster (cluster object): Cassandra cluster object for
-                                            the cassandra server
-            keyspace (str): Keyspace value (Database)
-
-        Returns:
-            session object: Returns session object for the given keyspace
-
+        Yields:
+            obj: yields CassandraCluster class object
 
     query_result_set_to_pandas(session, query)
         Creates result set as pandas dataframe for the given query
@@ -63,7 +53,6 @@ class CassandraCluster:
         Returns:
             dataframe: Result set as pandas dataframe
 
-
     query_result_set_to_file(self, session, query, file_location,
                                  file_type='parquet')
         Writes the result set into a file (Parquet or csv)
@@ -74,15 +63,6 @@ class CassandraCluster:
             path (str): Folder location for the file to be saved
             filename (str): Name of the fileau
             file_type (str, optional): Extension of file. Defaults to 'parquet'
-
-
-    cluster_shutdown(self, cluster)
-        Shutdown the cassandra cluster
-
-        Args:
-            cluster (cassandra cluster object): Cassandra cluster object for
-                                                        the cassandra server
-
     '''
 
     def __init__(self, ip_address, port, user, pwd):
@@ -100,64 +80,42 @@ class CassandraCluster:
         self.user = user
         self.pwd = pwd
         self.cluster = None
+        self.session = None
         self.logger.debug(self)
 
-    def __enter__(self):
-        auth_provider = PlainTextAuthProvider(
-            username=self.user, password=base64.b64decode(self.pwd).decode())
+    @contextmanager
+    def connect_cassandra(self, keyspace):
+        '''Connects cassandra using class parameters
 
-        self.cluster = Cluster(contact_points=[self.ip_address],
-                               load_balancing_policy=DCAwareRoundRobinPolicy(
-            local_dc='datacenter1'),
-            port=self.port, auth_provider=auth_provider,
-            control_connection_timeout=100, protocol_version=3)
-
-        self.logger.debug(self.cluster)
-
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self.cluster.is_shutdown:
-            self.cluster.shutdown()
-
-    def cassandra_cluster(self):
-        '''Connects to cassandra cluster
-
-        Returns:
-            cluster object: Connects cassandra server
-                                based on the object parameters
-                                and returns cassandra cluster object
-        '''
-        auth_provider = PlainTextAuthProvider(
-            username=self.user, password=base64.b64decode(self.pwd).decode())
-
-        cluster = Cluster(contact_points=[self.ip_address],
-                          load_balancing_policy=DCAwareRoundRobinPolicy(
-                              local_dc='datacenter1'),
-                          port=self.port, auth_provider=auth_provider,
-                          control_connection_timeout=100, protocol_version=3)
-
-        self.logger.debug(cluster)
-
-        return cluster
-
-    @staticmethod
-    def cassandra_session(cluster, keyspace):
-        '''Creates cassandra cluster session for the given keyspace and cluster
-
-        Args:
-            cluster (cluster object): Cassandra cluster object for
-                                            the cassandra server
-            keyspace (str): Keyspace value (Database)
-
-        Returns:
-            session object: Returns session object for the given keyspace
+        Yields:
+            obj: yields class object
         '''
 
-        session = cluster.connect()
-        session.set_keyspace(keyspace)
-        logger.info('Cassandra connection is established.')
-        return session
+        try:
+            auth_provider = PlainTextAuthProvider(username=self.user,
+                                                  password=base64.b64decode(
+                                                      self.pwd).decode())
+
+            self.cluster = Cluster(
+                contact_points=[self.ip_address],
+                load_balancing_policy=DCAwareRoundRobinPolicy(
+                    local_dc='datacenter1'),
+                port=self.port,
+                auth_provider=auth_provider,
+                control_connection_timeout=100,
+                protocol_version=3,)
+
+            self.logger.debug(self.cluster)
+
+            self.session = self.cluster.connect()
+            self.session.set_keyspace(keyspace)
+            self.logger.info('Cassandra connection is established.')
+
+            yield self
+        finally:
+            if not self.cluster.is_shutdown:
+                self.cluster.shutdown()
+                self.logger.info('Cassandra connection is closed.')
 
     @staticmethod
     def query_result_set_to_pandas(session, query):
@@ -182,18 +140,18 @@ class CassandraCluster:
 
         result = session.execute(query, timeout=None)
         dataframe = result._current_rows
-
         return dataframe
 
-    def query_result_set_to_file(self, session, query, file_location,
-                                 file_type='parquet'):
+    def query_result_set_to_file(self, session, query,
+                                 file_location, file_type='parquet'):
+
         '''Writes the result set into a file (Parquet or csv)
 
         Args:
             session (cassandra session object): Session object for the keyspace
             query (str): Query to be executed on cassandra server
             path (str): Folder location for the file to be saved
-            filename (str): Name of the fileau
+            filename (str): Name of the file
             file_type (str, optional): Extension of file. Defaults to 'parquet'
         '''
 
@@ -206,17 +164,6 @@ class CassandraCluster:
             self.logger.debug(f'File - {file_location}.csv is saved')
         else:
             self.logger.info(f'File type - {file_type} is not allowed')
-
-    def cluster_shutdown(self, cluster):
-        '''Shutdown the cassandra cluster
-
-        Args:
-            cluster (cassandra cluster object): Cassandra cluster object for
-                                                        the cassandra server
-        '''
-        if not cluster.is_shutdown:
-            cluster.shutdown()
-            self.logger.info('Cassandra cluster is shutdown')
 
     def __repr__(self):
         return f'''CassandraCluster('{self.ip_address}', {self.port},

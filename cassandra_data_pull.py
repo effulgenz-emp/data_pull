@@ -11,7 +11,7 @@ import logging.config
 import os
 import sys
 
-import cassandra_connection as cc
+from cassandra_connection import CassandraCluster
 
 # Configurations
 c_cfg = configparser.ConfigParser()
@@ -50,28 +50,28 @@ def main():
     logger.info('started.')
     logger.debug(f'Query to get all the tables - {all_tables_query}')
 
-    with cc.CassandraCluster(ip_address, port, user, password) as cas_con:
-        cluster = cas_con.cluster
-        session = cas_con.cassandra_session(cluster, keyspace)
+    cc = CassandraCluster(ip_address, port, user, password)
 
-        all_tables_df = cas_con.query_result_set_to_pandas(session,
+    with cc.connect_cassandra(keyspace) as cas_con:
+
+        all_tables_df = cas_con.query_result_set_to_pandas(cas_con.session,
                                                            all_tables_query)
 
         file_location = f'{data_folder}/{keyspace}_all_tables'
-        cas_con.query_result_set_to_file(session=session,
+        cas_con.query_result_set_to_file(session=cas_con.session,
                                          query=all_tables_query,
                                          file_location=file_location,
                                          file_type='csv')
 
         all_tables = all_tables_df['table_name'].tolist()
-
-        logger.info('Data pull is processing...')
-
+        logger.info('Data pull is started...')
+        
         for table in all_tables:
             table_data_query = f'{individual_table_data_query} {table}'
             logger.debug(f'table data query - {table_data_query}')
             file_location = f'{data_folder}/{keyspace}_{table}'
-            cas_con.query_result_set_to_file(session=session,
+
+            cas_con.query_result_set_to_file(session=cas_con.session,
                                              query=table_data_query,
                                              file_location=file_location)
 
